@@ -1,9 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 function AIModal() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const chatBoxRef = useRef(null);
+
+  // Scroll to bottom whenever messages change
+  useEffect(() => {
+    if (chatBoxRef.current) {
+      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -24,13 +32,12 @@ function AIModal() {
       if (!res.ok) throw new Error("Failed to fetch AI response");
 
       const data = await res.json();
-      // Assuming `data.response` contains AI reply text
       const aiReply = { role: "ai", content: data.response || "No response" };
-      setMessages([...updatedMessages, aiReply]);
+      setMessages((prev) => [...prev, aiReply]);
     } catch (err) {
       console.error("AI chat error:", err);
-      setMessages([
-        ...updatedMessages,
+      setMessages((prev) => [
+        ...prev,
         { role: "ai", content: "Error: Could not get AI response" },
       ]);
     } finally {
@@ -39,11 +46,19 @@ function AIModal() {
   };
 
   return (
-    <div className="ai-modal p-4 border rounded-md">
-      <div className="chat-box h-64 overflow-y-auto border p-2 mb-2">
+    <div className="ai-modal p-4 border rounded-md max-w-xl mx-auto">
+      <div
+        ref={chatBoxRef}
+        className="chat-box h-64 overflow-y-auto border p-2 mb-2 flex flex-col gap-2"
+      >
         {messages.map((msg, idx) => (
-          <div key={idx} className={msg.role === "user" ? "text-right" : "text-left"}>
-            <p className="inline-block p-1 rounded-md bg-gray-200">{msg.content}</p>
+          <div
+            key={idx}
+            className={msg.role === "user" ? "text-right" : "text-left"}
+          >
+            <p className="inline-block p-2 rounded-md bg-gray-200 break-words">
+              {msg.content}
+            </p>
           </div>
         ))}
       </div>
@@ -58,7 +73,7 @@ function AIModal() {
         />
         <button
           onClick={sendMessage}
-          className="bg-blue-500 text-white px-4 rounded-md"
+          className="bg-blue-500 text-white px-4 rounded-md disabled:opacity-50"
           disabled={loading}
         >
           {loading ? "Loading..." : "Send"}
