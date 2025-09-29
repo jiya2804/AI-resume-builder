@@ -1,35 +1,71 @@
-// const {
-//     GoogleGenerativeAI,
-//     HarmCategory,
-//     HarmBlockThreshold,
-//   } = require("@google/generative-ai");
+import React, { useState } from "react";
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+function AIModal() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  
-  const apiKey =import.meta.env.VITE_GOOGLE_AI_API_KEY;
-  const genAI = new GoogleGenerativeAI(apiKey);
-  
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-  });
-  
-  const generationConfig = {
-    temperature: 1,
-    topP: 0.95,
-    topK: 64,
-    maxOutputTokens: 8192,
-    responseMimeType: "application/json",
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    const newMessage = { role: "user", content: input };
+    const updatedMessages = [...messages, newMessage];
+    setMessages(updatedMessages);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/startChat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history: updatedMessages }),
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch AI response");
+
+      const data = await res.json();
+      // Assuming `data.response` contains AI reply text
+      const aiReply = { role: "ai", content: data.response || "No response" };
+      setMessages([...updatedMessages, aiReply]);
+    } catch (err) {
+      console.error("AI chat error:", err);
+      setMessages([
+        ...updatedMessages,
+        { role: "ai", content: "Error: Could not get AI response" },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
-  
-  
-   export const AIChatSession = model.startChat({
-      generationConfig,
-   // safetySettings: Adjust safety settings
-   // See https://ai.google.dev/gemini-api/docs/safety-settings
-      history: [
-      ],
-    });
-  
-  
-  
+
+  return (
+    <div className="ai-modal p-4 border rounded-md">
+      <div className="chat-box h-64 overflow-y-auto border p-2 mb-2">
+        {messages.map((msg, idx) => (
+          <div key={idx} className={msg.role === "user" ? "text-right" : "text-left"}>
+            <p className="inline-block p-1 rounded-md bg-gray-200">{msg.content}</p>
+          </div>
+        ))}
+      </div>
+      <div className="input-box flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="flex-1 p-2 border rounded-md"
+          placeholder="Type your message..."
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+        />
+        <button
+          onClick={sendMessage}
+          className="bg-blue-500 text-white px-4 rounded-md"
+          disabled={loading}
+        >
+          {loading ? "Loading..." : "Send"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default AIModal;
